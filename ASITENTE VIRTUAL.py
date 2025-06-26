@@ -1,10 +1,12 @@
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
+import pyttsx3
+import speech_recognition as sr
 
-# Modelo para similitud de textos
+# Configurar modelo de texto
 modelo = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Base de conocimientos expandida
+# Base de conocimientos
 base_preguntas = [
     # Física
     {"tema": "física", "pregunta": "¿Qué es la fuerza?", 
@@ -57,15 +59,49 @@ base_preguntas = [
      "respuesta": "Es un narrador que conoce todo lo que sienten y piensan los personajes."}
 ]
 
-# Codificamos las preguntas
+# Codificación de preguntas
 preguntas_texto = [item["pregunta"] for item in base_preguntas]
 preguntas_codificadas = modelo.encode(preguntas_texto)
 
-# Interfaz en Streamlit
-st.title("🤖 Asistente Virtual para el Aula")
-st.write("Haz una pregunta sobre física, inglés, matemáticas o lenguaje y literatura.")
+# Función para hablar
+def hablar_texto(texto):
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 150)
+    engine.setProperty('volume', 0.9)
+    engine.say(texto)
+    engine.runAndWait()
 
-pregunta_usuario = st.text_input("✍️ Escribe tu pregunta aquí:")
+# Función para escuchar
+def escuchar_microfono():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("🎙️ Escuchando... habla ahora.")
+        try:
+            audio = r.listen(source, timeout=5)
+            texto = r.recognize_google(audio, language="es-ES")
+            st.success(f"🗣️ Dijiste: {texto}")
+            return texto
+        except sr.UnknownValueError:
+            st.error("No entendí lo que dijiste.")
+        except sr.RequestError:
+            st.error("Error de conexión con el servicio de voz.")
+        except sr.WaitTimeoutError:
+            st.warning("⏱️ No detecté ninguna voz.")
+    return ""
+
+# Interfaz Streamlit
+st.title("🤖 Asistente Virtual para el Aula")
+st.write("Haz una pregunta sobre física, inglés, matemáticas, lenguaje o literatura.")
+
+modo = st.radio("Selecciona modo de entrada:", ["✍️ Escribir", "🎤 Hablar"])
+
+pregunta_usuario = ""
+
+if modo == "✍️ Escribir":
+    pregunta_usuario = st.text_input("Escribe tu pregunta aquí:")
+elif modo == "🎤 Hablar":
+    if st.button("🎙️ Hablar ahora"):
+        pregunta_usuario = escuchar_microfono()
 
 if pregunta_usuario:
     pregunta_codificada = modelo.encode(pregunta_usuario)
@@ -77,3 +113,6 @@ if pregunta_usuario:
     st.markdown(f"### 📚 Tema detectado: `{tema_detectado.capitalize()}`")
     st.markdown("### ✅ Respuesta del asistente:")
     st.write(mejor_respuesta)
+
+    if st.checkbox("🔊 Leer respuesta en voz alta"):
+        hablar_texto(mejor_respuesta)
