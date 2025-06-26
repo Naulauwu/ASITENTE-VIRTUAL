@@ -1,2 +1,5 @@
 streamlit
 sentence-transformers
+pyttsx3
+speechrecognition
+pyaudio
